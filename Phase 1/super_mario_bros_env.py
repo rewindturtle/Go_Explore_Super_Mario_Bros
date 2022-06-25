@@ -66,11 +66,14 @@ class Method_Wrapper(gym.Wrapper):
     def step(self, action):
         for i in range(self.frame_skip):
             state, _, _, info = self.env.step(action)
-        done = (info["lives"] < 2) or (info["level"] > self.level)
+        if self.level == 0:
+            done = (info["lives"] < 2) or (info["level"] > self.level)
+        else:
+            done = (info["lives"] < 2) or (info["level"] - 1 > self.level)
         if (info["lives"] < 2):
             x = -1.
-        elif (info["level"] > self.level):
-            x = -2.
+        # elif (info["level"] > self.level):
+        #     x = -2.
         else:
             x = 256. * float(info["x1"]) + float(info["x2"])
         return state, x, done, info

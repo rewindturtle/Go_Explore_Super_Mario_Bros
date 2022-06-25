@@ -1,16 +1,18 @@
 from Hyperparameters import *
 import numpy as np
 from copy import deepcopy
+import _pickle as pkl
 
 
 class Manager:
     def __init__(self, connections):
         self.connections = connections
-
         self.trajectories = [[0]]
         self.min_cell_steps = [999]
         self.cell_visits = [0]
         self.num_games = 0
+        self.best_cell = 0
+        self.best_len = 0
 
     def update_memory(self, data):
         actions, cells, game_data = data
@@ -18,6 +20,16 @@ class Manager:
         for i in range(len(cells)):
             c = cells[i]
             trajectory.append(actions[i])
+
+            if c > self.best_cell:
+                self.best_cell = c
+                self.best_len = i
+                with open('Best_Trajectory.pkl', 'wb') as file:
+                    pkl.dump(deepcopy(trajectory), file)
+            elif (c == self.best_cell) and (self.best_len > i):
+                self.best_len = i
+                with open('Best_Trajectory.pkl', 'wb') as file:
+                    pkl.dump(deepcopy(trajectory), file)
 
             if c >= len(self.min_cell_steps):
                 for j in range(c - len(self.min_cell_steps) + 1):
@@ -42,20 +54,23 @@ class Manager:
             print('Local Max Cell: ' + str(max_cell))
 
     def get_trajectory(self):
-        v_arrary = np.array(self.cell_visits)
-        exp = (MAX_EXP - np.arange(len(self.cell_visits))) / MAX_EXP
-        num = SCORE_A ** exp
-        # num = 1.
-        den = np.sqrt(v_arrary + SCORE_E1)
-        p = num / den + SCORE_E2
-        p = p / np.sum(p)
-        idx = np.random.choice(len(self.cell_visits), 1, p = p)[0]
-        self.cell_visits[idx] += 1
+        max_exp = len(self.cell_visits)
+        if max_exp > 1:
+            v_arrary = np.array(self.cell_visits)
+            exp = (max_exp - np.arange(max_exp) - 1) / (max_exp - 1)
+            num = SCORE_A ** exp
+            den = np.sqrt(v_arrary + SCORE_E1)
+            p = num / den + SCORE_E2
+            p = p / np.sum(p)
+            idx = np.random.choice(len(self.cell_visits), 1, p = p)[0]
+            self.cell_visits[idx] += 1
+        else:
+            idx = 0
         return self.trajectories[idx]
 
     def listen(self):
         i = 0
-        while True:
+        while self.num_games < MAX_GAMES:
             if self.connections[i].poll():
                 cmd, data = self.connections[i].recv()
                 if cmd == 'batch':

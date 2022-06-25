@@ -5,19 +5,17 @@ import os
 
 
 def get_cell(x):
-    return int(max(x - 40., 0.) // CELL_SIZE)
+    return int(max(x, 0.) // CELL_SIZE)
 
 
 def player_process(child_con, player_num):
     np.random.seed(int.from_bytes(os.urandom(4), byteorder='little'))
-    env = super_mario_bros_env.make(0)
+    env = super_mario_bros_env.make(3)
     num_games = 0
-    action_weights = np.array([1, 1, 1, 1, 1, 1, 1, RIGHT_B_WEIGHT, 1, RIGHT_B_WEIGHT])
-    action_weights = action_weights / np.sum(action_weights)
-
     while True:
         child_con.send(('trajectory', None))
         trajectory = child_con.recv()
+        a = 0
         t_idx = 0
         steps = 0
         max_cell = 0
@@ -29,7 +27,8 @@ def player_process(child_con, player_num):
             env.render()
         while True:
             if t_idx == len(trajectory):
-                a = np.random.choice(NUM_ACTIONS, 1, p = action_weights)[0]
+                if np.random.random() < 0.5:
+                    a = np.random.randint(NUM_ACTIONS)
             else:
                 a = trajectory[t_idx]
                 t_idx += 1
@@ -45,6 +44,6 @@ def player_process(child_con, player_num):
                 break
             steps += 1
         num_games += 1
-        data = [player_num, steps, t_idx, max_cell, num_games, max_x - 40.]
+        data = [player_num, steps, t_idx, max_cell, num_games, max_x]
         batch = [actions, cells, data]
         child_con.send(('batch', batch))
